@@ -1,7 +1,8 @@
 from __future__ import division
 
-import process
-import numpy as np
+from tqdm import tqdm, trange
+
+from processtest import DataProcessor
 
 import tensorflow as tf
 from bilstm import BiLSTM
@@ -13,21 +14,25 @@ from bilstm import BiLSTM
 
 print "Processing data..."
 
-x, y, vocab, tags = process.process_main('./data/eng.train')
-x, y = process.generate_matrix(x, y, tags)
+batch_size = 100
+
+dp = DataProcessor()
+dp.read_file('./data/eng.train', 'train')
+dp.read_file('./data/eng.testa', 'test')
 
 
 ###############
 # Build model #
 ###############
 
-max_length = x.shape[1]
-num_classes = len(tags)
+num_classes = len(dp.tags)
+vocab_size = len(dp.vocab) + 1
 
 data = tf.placeholder(tf.int32, [None, None])
 target = tf.placeholder(tf.float32, [None, None, num_classes])
 
-model = BiLSTM(data, target, len(vocab) + 1, embedding_size=20, lstm_size=20)
+model = BiLSTM(data, target, vocab_size, embedding_size=100,
+               lstm_size=100, learning_rate=0.01)
 
 
 ###############
@@ -36,23 +41,18 @@ model = BiLSTM(data, target, len(vocab) + 1, embedding_size=20, lstm_size=20)
 
 print "Training model..."
 
-batch_size = 50
-num_batches = len(x) // batch_size
-x_batches = np.array_split(x, num_batches)
-y_batches = np.array_split(y, num_batches)
-
 sess = tf.Session()
 sess.run(tf.initialize_all_variables())
 
-epochs = 10
-for i in range(epochs):
-    if i % 1 == 0:
-        print sess.run(model.cost,
-                       feed_dict={data: x, target: y}),
-        print sess.run(model.error,
-                       feed_dict={data: x, target: y})
-    for x, y in zip(x_batches, y_batches):
-        sess.run(model.optimize, feed_dict={data: x, target: y})
+epochs = 100000
+for i in trange(epochs):
+    if i % 100 == 0:
+        x, y = dp.get_data('test')
+        tqdm.write(str(sess.run(model.error,
+                                feed_dict={data: x, target: y})))
+
+    x, y = dp.next_batch('train', batch_size)
+    sess.run(model.optimize, feed_dict={data: x, target: y})
 
 
 ##############
@@ -60,5 +60,5 @@ for i in range(epochs):
 ##############
 
 print
-# print sess.run(model.error, feed_dict={data: test_input, target:
-# test_output})
+x, y = dp.get_data('test')
+print sess.run(model.error, feed_dict={data: x, target: y})

@@ -43,7 +43,7 @@ def process_main(filepath):
     x = [l for l in x if l != []]
     y = [l for l in y if l != []]
 
-    vocab = [w for w in vocab.keys() if vocab[w] >= 10]
+    vocab = [w for w in vocab.keys() if vocab[w] >= 1]
     vocab.append('UNK')
 
     vocab = {w: i + 1 for i, w in enumerate(vocab)}
@@ -90,16 +90,24 @@ def fill_one_hot(batch, length):
     return np.array(output)
 
 
-def generate_matrix(x, y, tags):
+def generate_batches(x, y, tags, batch_size):
+    num_batches = math.ceil(len(x) / batch_size)
+    x_batches = np.array_split(x, num_batches)
+    y_batches = np.array_split(y, num_batches)
 
-    x = pd.DataFrame(x)
-    x = x.fillna(0).astype(int).values
+    x_batches = [pd.DataFrame(b.tolist()) for b in x_batches]
+    x_batches = [b.fillna(0).astype(int).values for b in x_batches]
 
     num_classes = len(tags)
 
-    y = [np.eye(num_classes)[s] for s in y]
-    y = [s.tolist() for s in y]
-    y = pd.DataFrame(y)
-    y = fill_one_hot(y, num_classes)
+    y_batches = [[np.eye(num_classes)[s] for s in b] for b in y_batches]
+    y_batches = [[s.tolist() for s in b] for b in y_batches]
+    y_batches = [pd.DataFrame(b) for b in y_batches]
+    y_batches = [fill_one_hot(b, num_classes) for b in y_batches]
 
-    return x, y
+    return x_batches, y_batches
+
+
+def generate_matrix(x, y, tags):
+    a, b = generate_batches(x, y, tags, len(x))
+    return a[0], b[0]
