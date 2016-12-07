@@ -97,7 +97,7 @@ class DataProcessor(object):
     def _convert_to_matrix(self, x, y):
         y = [np.eye(len(self.tags))[l] for l in y]
 
-        return (_pad_to_max_length(x), _pad_to_max_length(y))
+        return _pad_to_max_length(x), _pad_to_max_length(y)
 
     def next_batch(self, key, size):
         batch = np.random.choice(len(self.data[key][0]), size)
